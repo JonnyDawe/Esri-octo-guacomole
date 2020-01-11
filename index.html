@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>ArcGIS JavaScript Tutorials: Create a JavaScript starter app</title>
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.13/esri/themes/dark-blue/main.css"
+    />
+    <script src="https://js.arcgis.com/4.13/"></script>
+    <link href="./style.css" rel="stylesheet" type="text/css" />
+  </head>
+
+  <body>
+    <div class="FilterBar">
+      <div class="item" data-season="United_Kindom">United_Kindom</div>
+      <div class="item visible-season" data-season="France">France</div>
+      <div class="item visible-season" data-season="Germany">Germany</div>
+    </div>
+    <div id="viewDiv"></div>
+    <div id="info" class="esri-widget">
+      <span id="name"></span> <br />
+      <span id="category"></span> <br />
+      <span id="wind"></span>
+    </div>
+    <div id="logoDiv" class="esri-widget">Logo</div>
+  </body>
+  <script src="./helloworld.js"></script>
+</html>
