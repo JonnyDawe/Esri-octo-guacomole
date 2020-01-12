@@ -20,6 +20,14 @@ body {
   height: 90%;
 }
 
+.item:focus {
+  background-color: dimgrey;
+}
+
+.item:hover {
+  background-color: grey;
+}
+
 .item {
   display: flex;
   background-color: blue;
