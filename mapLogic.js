@@ -28,6 +28,7 @@ require([
   //--------------------------------------------------------------------------
 
   //define variables used throughout
+
   let countryValue;
   let countryLayerView;
   const filterElement = document.getElementById("filterbar");
@@ -49,7 +50,6 @@ require([
   //layer added during start up.
   const map = new Map({
     basemap: "gray-vector"
-    // layers: [layer]
   });
 
   //create the map view and place in viewDiv - centre on France
@@ -76,6 +76,8 @@ require([
     valueExpression: countryValue,
     view: view,
     outlineOptimizationEnabled: true,
+    maxValue: 20,
+    minValue: 0,
     colorScheme: {
       id: "test",
       colors: [
@@ -86,6 +88,7 @@ require([
         "#40ff00",
         "#00ff00"
       ],
+
       noDataColor: [0, 0, 0],
       colorsForClassBreaks: [],
       outline: {
@@ -111,9 +114,7 @@ require([
   //  Setup UI on application startup.
   //
   //--------------------------------------------------------------------------
-
   let tooltip = createTooltip();
-
   //when view has loaded then create the renderer for the layer.
   //add newly rendered layer to the map
   //then when layer is added check that layer view is loaded.
@@ -146,9 +147,9 @@ require([
   //--------------------------------------------------------------------------
 
   function setupActions() {
-    view.on("pointer-move", hoverHandler);
     view.on("pointer-down", clickHandler);
     view.on("click", clickHandler);
+    view.on("pointer-move", hoverHandler);
 
     filterElement.addEventListener("click", filterByVoting);
 
@@ -161,21 +162,30 @@ require([
     });
   }
 
+  //store the current target of the click event.
   let currentTarget;
+  let currentSelectedCountry;
+
   function clickHandler(event) {
     // the hitTest() checks to see if any graphics in the view
     // intersect the x, y coordinates of the pointer
     view.hitTest(event).then(function targetFeature(response) {
       if (response.results.length > 1) {
+        // >1 as vector basemap counts as a result unlike raster!
         //if there is any results i.e. the results object returns non-zero.
         //if so then select the graphics from the layer.
         const graphic = response.results.filter(function(result) {
           return result.graphic.layer === layer;
         })[0].graphic;
 
+        //get attributes of the country selected by a click
         let attributes = graphic.attributes;
         let countryValue = "$feature." + attributes.NAME_ENGL;
+        currentSelectedCountry = attributes.NAME_ENGL;
+        dom.byId("info").style.visibility = "visible";
+        dom.byId("name").innerHTML = attributes.NAME_ENGL;
 
+        //update the selected country only if a new country has been selected.
         if (currentTarget !== countryValue) {
           currentTarget = countryValue;
           watchUtils.whenFalseOnce(
@@ -183,16 +193,18 @@ require([
             "updating",
             generateColorRenderer(countryValue)
           );
-          // graphicsLayer.removeAll();
+          // remove the current secltion graphic from the map.
           view.graphics.removeAll();
 
+          //**** this could be change to improve the selection appearance.
+          // Also do I want to consider what happens if a country did not compete....
           graphic.symbol = {
             type: "simple-fill", // autocasts as new SimpleMarkerSymbol()
             color: "blue"
           };
-          view.graphics.add(graphic);
 
-          // graphicsLayer.add(graphic);
+          // add the new graphic as a simple fill.
+          view.graphics.add(graphic);
         }
         return;
       }
@@ -221,14 +233,19 @@ require([
         //Select some attributes from the graphics layer to work with.
 
         let attributes = graphic.attributes;
-        console.log(attributes);
         let id = attributes.OBJECTID_1;
-        let countryValue = "$feature." + attributes.Name_ENGL;
-        var screenPoint = response.screenPoint;
-        var testvalueinsp = graphic.getAttribute("NAME_ENGL");
-        tooltip.show(screenPoint, "Country " + testvalueinsp);
-        dom.byId("info").style.visibility = "visible";
-        dom.byId("name").innerHTML = testvalueinsp;
+        let screenPoint = response.screenPoint;
+        let hoverSelection = graphic.getAttribute("NAME_ENGL");
+        let voteForSelection = graphic.getAttribute(currentSelectedCountry);
+        tooltip.show(
+          screenPoint,
+          hoverSelection +
+            " votes to " +
+            currentSelectedCountry +
+            " : " +
+            voteForSelection
+        );
+
         // dom.byId("category").innerHTML = "Category ";
         // dom.byId("wind").innerHTML = " kts";
 
@@ -255,8 +272,6 @@ require([
         currentid = null;
         highlightSelect.remove();
         tooltip.hide();
-        //highlightSelect.remove();
-        //layer.renderer = baseRenderer
       }
 
       // highlight all features belonging to the same hurricane as the feature
