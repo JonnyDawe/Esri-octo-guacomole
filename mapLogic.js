@@ -32,6 +32,7 @@ require([
   let countryValue;
   let countryLayerView;
   let maxVoteRange = 20;
+  let currentFilter = "Total Votes";
   const filterElement = document.getElementById("filterbar");
   const viewDivElement = document.getElementById("viewDiv");
   let window = true;
@@ -76,7 +77,7 @@ require([
     layerInfos: [
       {
         layer: layer,
-        title: "Test"
+        title: "Legend"
       }
     ]
   });
@@ -93,7 +94,7 @@ require([
   //set the layer view as a stored variable to be used in setupActions.
 
   view.when().then(function() {
-    Promise.all([createRenderer("United_Kingdom", 20)])
+    Promise.all([createRenderer("United_Kingdom", 20, currentFilter)])
       .then(function() {
         view.ui.add("info", "manual");
         view.ui.add(legend, "bottom-right");
@@ -167,7 +168,7 @@ require([
             view,
             "updating",
 
-            createRenderer(currentSelectedCountry, maxVoteRange)
+            createRenderer(currentSelectedCountry, maxVoteRange, currentFilter)
           );
           // remove the current secltion graphic from the map.
           view.graphics.removeAll();
@@ -181,6 +182,7 @@ require([
 
           // add the new graphic as a simple fill.
           view.graphics.add(graphic);
+          tooltip.hide();
         }
         return;
       }
@@ -213,14 +215,18 @@ require([
         let screenPoint = response.screenPoint;
         let hoverSelection = graphic.getAttribute("NAME_ENGL");
         let voteForSelection = graphic.getAttribute(currentSelectedCountry);
-        tooltip.show(
-          screenPoint,
-          hoverSelection +
-            " votes to " +
-            currentSelectedCountry +
-            " : " +
-            voteForSelection
-        );
+
+        if (
+          hoverSelection == currentSelectedCountry ||
+          voteForSelection === undefined
+        ) {
+          tooltip.show(screenPoint, hoverSelection);
+        } else {
+          tooltip.show(
+            screenPoint,
+            voteForSelection + " Votes from " + hoverSelection
+          );
+        }
 
         // dom.byId("category").innerHTML = "Category ";
         // dom.byId("wind").innerHTML = " kts";
@@ -267,37 +273,40 @@ require([
     switch (selectedVoteType) {
       case "TJ":
         maxVoteRange = 20;
+        currentFilter = "Total Votes";
         break;
 
       case "J":
         maxVoteRange = 12;
+        currentFilter = "Jury Votes";
         break;
 
       case "T":
         maxVoteRange = 12;
+        currentFilter = "Televotes";
         break;
     }
-    createRenderer(currentSelectedCountry, maxVoteRange);
+    createRenderer(currentSelectedCountry, maxVoteRange, currentFilter);
   }
 
   /**
    * Changes the colour renderer based upon the selected country
    */
 
-  function createRenderer(countrySelected, maxColorRange) {
+  function createRenderer(countrySelected, maxColorRange, legendTitle) {
     layer.renderer = {
       type: "simple",
       symbol: {
         type: "simple-fill",
         color: "rgb(0, 0, 0)",
-        outline: null
+        outline: "rgba(0,0,0,0)"
       },
       visualVariables: [
         {
           type: "color",
           field: countrySelected,
           legendOptions: {
-            title: "Votes from each country"
+            title: legendTitle + " From Each Country"
           },
           stops: [
             {
