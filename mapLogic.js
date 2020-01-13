@@ -121,7 +121,7 @@ require([
   //set the layer view as a stored variable to be used in setupActions.
 
   view.when().then(function() {
-    Promise.all([generateColorRenderer("$feature.United_Kingdom")])
+    Promise.all([createRenderer("United_Kingdom")])
       .then(function() {
         view.ui.add("info", "manual");
         view.ui.add(legend, "bottom-right");
@@ -191,7 +191,7 @@ require([
           watchUtils.whenFalseOnce(
             view,
             "updating",
-            generateColorRenderer(countryValue)
+            createRenderer(currentSelectedCountry)
           );
           // remove the current secltion graphic from the map.
           view.graphics.removeAll();
@@ -293,15 +293,41 @@ require([
    * Changes the colour renderer based upon the selected country
    */
 
-  function generateColorRenderer(Field) {
-    colorParams.valueExpression = Field;
-
-    return colorRendererCreator
-      .createContinuousRenderer(colorParams)
-      .then(function(response) {
-        let rendererResult = response;
-        layer.renderer = rendererResult.renderer;
-      });
+  function createRenderer(countrySelected) {
+    layer.renderer = {
+      type: "simple",
+      symbol: {
+        type: "simple-fill",
+        color: "rgb(0, 0, 0)",
+        outline: null
+      },
+      visualVariables: [
+        {
+          type: "color",
+          field: countrySelected,
+          legendOptions: {
+            title: "Votes from each country"
+          },
+          stops: [
+            {
+              value: 20,
+              color: "#1a9850",
+              label: "20"
+            },
+            {
+              value: 10,
+              color: "#ffffbf",
+              label: "10"
+            },
+            {
+              value: 0,
+              color: "#d7191c",
+              label: "0"
+            }
+          ]
+        }
+      ]
+    };
   }
 
   /**
