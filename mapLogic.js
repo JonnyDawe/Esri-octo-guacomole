@@ -40,10 +40,10 @@ require([
     url:
       "https://services1.arcgis.com/iKsbAcqgVYmhKSqt/arcgis/rest/services/Eurovision2019Countries/FeatureServer",
     outFields: ["*"],
-    opacity: 0.8,
+    opacity: 0.8
 
     //Temporary definition expression until filter is created
-    definitionExpression: "Jury_and_Televoting = 'TJ'"
+    //definitionExpression: "Jury_and_Televoting = 'TJ'"
   });
 
   //Bring in map
@@ -121,7 +121,7 @@ require([
   //set the layer view as a stored variable to be used in setupActions.
 
   view.when().then(function() {
-    Promise.all([createRenderer("United_Kingdom")])
+    Promise.all([createRenderer("United_Kingdom", 0, 20)])
       .then(function() {
         view.ui.add("info", "manual");
         view.ui.add(legend, "bottom-right");
@@ -133,6 +133,9 @@ require([
       })
       .then(function(layerView) {
         countryLayerView = layerView;
+        countryLayerView.filter = {
+          where: "Jury_and_Televoting  = 'TJ'"
+        };
         return countryLayerView;
       })
       .then(setupActions);
@@ -191,7 +194,7 @@ require([
           watchUtils.whenFalseOnce(
             view,
             "updating",
-            createRenderer(currentSelectedCountry)
+            createRenderer(currentSelectedCountry, 0, 20)
           );
           // remove the current secltion graphic from the map.
           view.graphics.removeAll();
@@ -283,9 +286,9 @@ require([
    * Handles the filtering
    */
   function filterByVoting(event) {
-    const selectedSeason = event.target.getAttribute("data-season");
+    const selectedVoteType = event.target.getAttribute("voteType");
     countryLayerView.filter = {
-      where: "Name_ENGL  = '" + selectedSeason + "'"
+      where: "Jury_and_Televoting  = '" + selectedVoteType + "'"
     };
   }
 
@@ -293,7 +296,7 @@ require([
    * Changes the colour renderer based upon the selected country
    */
 
-  function createRenderer(countrySelected) {
+  function createRenderer(countrySelected, minColorRange, maxColorRange) {
     layer.renderer = {
       type: "simple",
       symbol: {
@@ -310,17 +313,17 @@ require([
           },
           stops: [
             {
-              value: 20,
+              value: maxColorRange,
               color: "#1a9850",
               label: "20"
             },
             {
-              value: 10,
+              value: maxColorRange / 2,
               color: "#ffffbf",
               label: "10"
             },
             {
-              value: 0,
+              value: minColorRange,
               color: "#d7191c",
               label: "0"
             }
