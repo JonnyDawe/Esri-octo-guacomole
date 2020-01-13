@@ -31,6 +31,7 @@ require([
 
   let countryValue;
   let countryLayerView;
+  let maxVoteRange = 20;
   const filterElement = document.getElementById("filterbar");
   const viewDivElement = document.getElementById("viewDiv");
   let window = true;
@@ -70,35 +71,6 @@ require([
     resizeAlign: "top-left"
   });
 
-  //Manually define a color ramp to use.
-  let colorParams = {
-    layer: layer,
-    valueExpression: countryValue,
-    view: view,
-    outlineOptimizationEnabled: true,
-    maxValue: 20,
-    minValue: 0,
-    colorScheme: {
-      id: "test",
-      colors: [
-        "#dd2e3d",
-        "#ff4000",
-        "#ffbf00",
-        "#80ff00",
-        "#40ff00",
-        "#00ff00"
-      ],
-
-      noDataColor: [0, 0, 0],
-      colorsForClassBreaks: [],
-      outline: {
-        color: { r: 153, g: 153, b: 153, a: 0.25 },
-        width: "0.5px"
-      },
-      opacity: 0.8
-    }
-  };
-
   var legend = new Legend({
     view: view,
     layerInfos: [
@@ -121,7 +93,7 @@ require([
   //set the layer view as a stored variable to be used in setupActions.
 
   view.when().then(function() {
-    Promise.all([createRenderer("United_Kingdom", 0, 20)])
+    Promise.all([createRenderer("United_Kingdom", 20)])
       .then(function() {
         view.ui.add("info", "manual");
         view.ui.add(legend, "bottom-right");
@@ -194,7 +166,8 @@ require([
           watchUtils.whenFalseOnce(
             view,
             "updating",
-            createRenderer(currentSelectedCountry, 0, 20)
+
+            createRenderer(currentSelectedCountry, maxVoteRange)
           );
           // remove the current secltion graphic from the map.
           view.graphics.removeAll();
@@ -290,13 +263,28 @@ require([
     countryLayerView.filter = {
       where: "Jury_and_Televoting  = '" + selectedVoteType + "'"
     };
+
+    switch (selectedVoteType) {
+      case "TJ":
+        maxVoteRange = 20;
+        break;
+
+      case "J":
+        maxVoteRange = 12;
+        break;
+
+      case "T":
+        maxVoteRange = 12;
+        break;
+    }
+    createRenderer(currentSelectedCountry, maxVoteRange);
   }
 
   /**
    * Changes the colour renderer based upon the selected country
    */
 
-  function createRenderer(countrySelected, minColorRange, maxColorRange) {
+  function createRenderer(countrySelected, maxColorRange) {
     layer.renderer = {
       type: "simple",
       symbol: {
@@ -315,15 +303,15 @@ require([
             {
               value: maxColorRange,
               color: "#1a9850",
-              label: "20"
+              label: maxColorRange.toString()
             },
             {
               value: maxColorRange / 2,
               color: "#ffffbf",
-              label: "10"
+              label: (maxColorRange / 2).toString()
             },
             {
-              value: minColorRange,
+              value: 0,
               color: "#d7191c",
               label: "0"
             }
