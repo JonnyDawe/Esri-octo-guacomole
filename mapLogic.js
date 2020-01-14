@@ -126,7 +126,7 @@ require([
               countryLayerView
                 .queryFeatures(startUpQuery)
                 .then(function(result) {
-                  addGraphic(result);
+                  addStartUpGraphic(result);
                 });
               handle.remove();
             }
@@ -134,20 +134,24 @@ require([
         } else {
           // Execute the query
           countryLayerView.queryFeatures(startUpQuery).then(function(result) {
-            addGraphic(result);
+            addStartUpGraphic(result);
           });
         }
-
-        // countryLayerView.queryFeatures(startUpQuery).then(function(result) {
-        //   console.log(result);
-        // });
 
         return countryLayerView;
       })
       .then(setupActions);
   });
 
-  function addGraphic(result) {
+  //Define event listeners on UI
+
+  //--------------------------------------------------------------------------
+  //
+  //  Setup Methods
+  //
+  //--------------------------------------------------------------------------
+
+  function addStartUpGraphic(result) {
     feature = result.features[0];
 
     let graphic = new Graphic({
@@ -160,14 +164,6 @@ require([
 
     view.graphics.add(graphic);
   }
-
-  //Define event listeners on UI
-
-  //--------------------------------------------------------------------------
-  //
-  //  Setup Methods
-  //
-  //--------------------------------------------------------------------------
 
   function setupActions() {
     view.on("pointer-down", clickHandler);
