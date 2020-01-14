@@ -29,11 +29,12 @@ require([
 
   //define variables used throughout
 
+  let allButtons = document.querySelectorAll(".item");
   let countryValue;
   let countryLayerView;
   let maxVoteRange = 20;
   let currentFilter = "Total Votes";
-  const filterElement = document.getElementById("filterbar");
+  const filterElement = document.querySelector(".FilterBar");
   const viewDivElement = document.getElementById("viewDiv");
   let window = true;
 
@@ -127,7 +128,11 @@ require([
     view.on("click", clickHandler);
     view.on("pointer-move", hoverHandler);
 
-    filterElement.addEventListener("click", filterByVoting);
+    for (var i = 0; i < allButtons.length; i++) {
+      allButtons[i].addEventListener("click", function(event) {
+        filterByVoting(this);
+      });
+    }
 
     viewDivElement.addEventListener("mouseout", function(event) {
       window = false;
@@ -266,8 +271,8 @@ require([
   /**
    * Handles the filtering
    */
-  function filterByVoting(event) {
-    const selectedVoteType = event.target.getAttribute("voteType");
+  function filterByVoting(eventTarget) {
+    const selectedVoteType = eventTarget.getAttribute("voteType");
     countryLayerView.filter = {
       where: "Jury_and_Televoting  = '" + selectedVoteType + "'"
     };
@@ -301,7 +306,12 @@ require([
       symbol: {
         type: "simple-fill",
         color: "rgb(0, 0, 0)",
-        outline: "rgba(0,0,0,0)"
+        outline: {
+          // autocasts as new SimpleLineSymbol()
+          color: "black",
+          width: 1,
+          opacity: 0.8
+        }
       },
       visualVariables: [
         {
