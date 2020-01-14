@@ -3,7 +3,7 @@ require([
   "esri/Map",
   "esri/views/MapView",
   "esri/layers/FeatureLayer",
-
+  "esri/Graphic",
   "esri/renderers/smartMapping/creators/color",
   "dojo/dom",
   "esri/widgets/Legend",
@@ -14,6 +14,7 @@ require([
   Map,
   MapView,
   FeatureLayer,
+  Graphic,
   colorRendererCreator,
   dom,
   Legend,
@@ -31,6 +32,7 @@ require([
 
   let allButtons = document.querySelectorAll(".item");
   let countryValue;
+  let currentSelectedCountry;
   let countryLayerView;
   let maxVoteRange = 20;
   let currentFilter = "Total Votes";
@@ -95,6 +97,8 @@ require([
   //set the layer view as a stored variable to be used in setupActions.
 
   view.when().then(function() {
+    currentSelectedCountry = "United_Kingdom";
+
     Promise.all([createRenderer("United_Kingdom", 20, currentFilter)])
       .then(function() {
         view.ui.add("info", "manual");
@@ -110,10 +114,52 @@ require([
         countryLayerView.filter = {
           where: "Jury_and_Televoting  = 'TJ'"
         };
+
+        var startUpQuery = layer.createQuery();
+        startUpQuery.where = "NAME_ENGL = '" + currentSelectedCountry + "'";
+        startUpQuery.outFields = ["NAME_ENGL"];
+
+        if (countryLayerView.updating) {
+          var handle = countryLayerView.watch("updating", function(isUpdating) {
+            if (!isUpdating) {
+              // Execute the query
+              countryLayerView
+                .queryFeatures(startUpQuery)
+                .then(function(result) {
+                  addGraphic(result);
+                });
+              handle.remove();
+            }
+          });
+        } else {
+          // Execute the query
+          countryLayerView.queryFeatures(startUpQuery).then(function(result) {
+            addGraphic(result);
+          });
+        }
+
+        // countryLayerView.queryFeatures(startUpQuery).then(function(result) {
+        //   console.log(result);
+        // });
+
         return countryLayerView;
       })
       .then(setupActions);
   });
+
+  function addGraphic(result) {
+    feature = result.features[0];
+
+    let graphic = new Graphic({
+      geometry: feature.geometry,
+      symbol: {
+        type: "simple-fill", // autocasts as new SimpleMarkerSymbol()
+        color: "blue"
+      }
+    });
+
+    view.graphics.add(graphic);
+  }
 
   //Define event listeners on UI
 
@@ -145,9 +191,9 @@ require([
 
   //store the current target of the click event.
   let currentTarget;
-  let currentSelectedCountry;
 
   function clickHandler(event) {
+    console.log(event);
     // the hitTest() checks to see if any graphics in the view
     // intersect the x, y coordinates of the pointer
     view.hitTest(event).then(function targetFeature(response) {
