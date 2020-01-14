@@ -160,6 +160,8 @@ require([
         currentSelectedCountry = attributes.NAME_ENGL;
         dom.byId("info").style.visibility = "visible";
         dom.byId("name").innerHTML = attributes.NAME_ENGL;
+        dom.byId("total-votes").innerHTML = attributes.TotalVotes;
+        dom.byId("position").innerHTML = attributes.rank;
 
         //update the selected country only if a new country has been selected.
         if (currentTarget !== countryValue) {
