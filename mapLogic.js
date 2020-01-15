@@ -9,7 +9,10 @@ require([
   "esri/widgets/Legend",
   "esri/tasks/support/AlgorithmicColorRamp",
   "esri/Color",
-  "esri/core/watchUtils"
+  "esri/core/watchUtils",
+  "esri/Basemap",
+  "esri/layers/VectorTileLayer",
+  "esri/layers/MapImageLayer"
 ], function(
   Map,
   MapView,
@@ -20,7 +23,10 @@ require([
   Legend,
   AlgorithmicColorRamp,
   Color,
-  watchUtils
+  watchUtils,
+  Basemap,
+  VectorTileLayer,
+  MapImageLayer
 ) {
   //--------------------------------------------------------------------------
   //
@@ -45,24 +51,59 @@ require([
     url:
       "https://services1.arcgis.com/iKsbAcqgVYmhKSqt/arcgis/rest/services/Eurovision2019Countries/FeatureServer",
     outFields: ["*"],
-    opacity: 0.8
+    opacity: 0.7
 
     //Temporary definition expression until filter is created
     //definitionExpression: "Jury_and_Televoting = 'TJ'"
   });
 
+  // const basemap = new Basemap({
+  //   baseLayers: [
+  //     new VectorTileLayer({
+  //       portalItem: {
+  //         id: "bedf0ede6c9a48c0bc5770179ec1897e" // Forest and Parks Canvas
+  //       }
+  //     })
+  //   ],
+  //   referenceLayers: [
+  //     new VectorTileLayer({
+  //       portalItem: {
+  //         id: "cbb067cb29a24c4ea24c79adf14331c0" // Forest and Parks Canvas
+  //       }
+  //     })
+  //   ]
+  // });
+
+  // const basemap = new Basemap({
+  //   baseLayers: [
+  //     new MapImageLayer({
+  //       url:
+  //         "https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer",
+  //       title: "Basemap"
+  //     })
+  //   ],
+  //   referenceLayers: [
+  //     new MapImageLayer({
+  //       url:
+  //         "https://services.arcgisonline.com/arcgis/rest/services/Reference/World_Reference_Overlay/MapServer",
+  //       title: "Reference"
+  //     })
+  //   ]
+  // });
+
   //Bring in map
   //layer added during start up.
   const map = new Map({
     basemap: "gray-vector"
+    // basemap: basemap
   });
 
   //create the map view and place in viewDiv - centre on France
   const view = new MapView({
     container: "viewDiv",
     map: map,
-    center: [1, 48], // longitude, latitude
-    zoom: 5,
+    center: [3, 48], // longitude, latitude
+    zoom: 3,
     highlightOptions: {
       color: "orange"
     },
@@ -151,6 +192,10 @@ require([
   //
   //--------------------------------------------------------------------------
 
+  function StringFormatter(string) {
+    return string.replace(/_/g, " ");
+  }
+
   function addStartUpGraphic(result) {
     feature = result.features[0];
 
@@ -206,8 +251,8 @@ require([
         let countryValue = "$feature." + attributes.NAME_ENGL;
         currentSelectedCountry = attributes.NAME_ENGL;
         dom.byId("info").style.visibility = "visible";
-        dom.byId("name").innerHTML = attributes.NAME_ENGL;
-        dom.byId("total-votes").innerHTML = attributes.TotalVotes;
+        dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL);
+        dom.byId("total-votes").innerHTML = attributes.TotalVotes + " Votes";
         dom.byId("position").innerHTML = attributes.rank;
 
         //update the selected country only if a new country has been selected.
@@ -258,6 +303,7 @@ require([
         })[0].graphic;
 
         //Select some attributes from the graphics layer to work with.
+        viewDivElement.style.cursor = "pointer";
 
         let attributes = graphic.attributes;
         let id = attributes.OBJECTID_1;
@@ -269,7 +315,7 @@ require([
           hoverSelection == currentSelectedCountry ||
           voteForSelection === undefined
         ) {
-          tooltip.show(screenPoint, hoverSelection);
+          tooltip.show(screenPoint, StringFormatter(hoverSelection));
         } else {
           tooltip.show(
             screenPoint,
@@ -303,6 +349,7 @@ require([
         currentid = null;
         highlightSelect.remove();
         tooltip.hide();
+        viewDivElement.style.cursor = "default";
       }
 
       // highlight all features belonging to the same hurricane as the feature
