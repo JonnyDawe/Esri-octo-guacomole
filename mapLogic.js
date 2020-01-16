@@ -1,122 +1,66 @@
 require([
-  //Main Map Modules
+  //Import Esri Mapping modules
   "esri/Map",
   "esri/views/MapView",
   "esri/layers/FeatureLayer",
   "esri/Graphic",
-  "esri/renderers/smartMapping/creators/color",
   "dojo/dom",
   "esri/widgets/Legend",
-  "esri/tasks/support/AlgorithmicColorRamp",
-  "esri/Color",
-  "esri/core/watchUtils",
-  "esri/Basemap",
-  "esri/layers/VectorTileLayer",
-  "esri/layers/MapImageLayer"
-], function(
-  Map,
-  MapView,
-  FeatureLayer,
-  Graphic,
-  colorRendererCreator,
-  dom,
-  Legend,
-  AlgorithmicColorRamp,
-  Color,
-  watchUtils,
-  Basemap,
-  VectorTileLayer,
-  MapImageLayer
-) {
+  "esri/core/watchUtils"
+], function(Map, MapView, FeatureLayer, Graphic, dom, Legend, watchUtils) {
   //--------------------------------------------------------------------------
   //
   //  Setup variables for Maps, Views and Utilities
   //
   //--------------------------------------------------------------------------
 
-  //define variables used throughout
+  //*** application Variables ***
 
-  let allButtons = document.querySelectorAll(".item");
-  let countryValue;
-  let currentSelectedCountry;
-  let countryLayerView;
-  let maxVoteRange = 20;
-  let currentFilter = "Total Votes";
-  const filterElement = document.querySelector(".FilterBar");
-  const viewDivElement = document.getElementById("viewDiv");
-  let window = true;
+  // UI HTML Elements
+  const viewDivElement = document.getElementById("viewDiv"); //Map element Div
+  const allButtons = document.querySelectorAll(".item"); //Radio buttons array
 
-  // Define Layer (is a constant and does not change)
+  let window = true; // record whether the mouse currently over the map element Div
+
+  // Application scope
+  let currentSelectedCountry; // record the currently selected country
+  let countryLayerView; // stores the layer view which is created.
+  let maxVoteRange = 20; // stores the current upper limit for the continuous colour renderer
+  let currentFilter = "Total Votes"; // record the currently selected filter
+
+  // Load FeatureLayer containing country data
   const layer = new FeatureLayer({
     url:
       "https://services1.arcgis.com/iKsbAcqgVYmhKSqt/arcgis/rest/services/Eurovision2019Countries/FeatureServer",
     outFields: ["*"],
     opacity: 0.7
-
-    //Temporary definition expression until filter is created
-    //definitionExpression: "Jury_and_Televoting = 'TJ'"
   });
 
-  // const basemap = new Basemap({
-  //   baseLayers: [
-  //     new VectorTileLayer({
-  //       portalItem: {
-  //         id: "bedf0ede6c9a48c0bc5770179ec1897e" // Forest and Parks Canvas
-  //       }
-  //     })
-  //   ],
-  //   referenceLayers: [
-  //     new VectorTileLayer({
-  //       portalItem: {
-  //         id: "cbb067cb29a24c4ea24c79adf14331c0" // Forest and Parks Canvas
-  //       }
-  //     })
-  //   ]
-  // });
-
-  // const basemap = new Basemap({
-  //   baseLayers: [
-  //     new MapImageLayer({
-  //       url:
-  //         "https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer",
-  //       title: "Basemap"
-  //     })
-  //   ],
-  //   referenceLayers: [
-  //     new MapImageLayer({
-  //       url:
-  //         "https://services.arcgisonline.com/arcgis/rest/services/Reference/World_Reference_Overlay/MapServer",
-  //       title: "Reference"
-  //     })
-  //   ]
-  // });
-
-  //Bring in map
-  //layer added during start up.
+  // Create new Map
   const map = new Map({
     basemap: "gray-vector"
-    // basemap: basemap
   });
 
-  //create the map view and place in viewDiv - centre on France
+  //Create new MapView and centre on Europe.
   const view = new MapView({
     container: "viewDiv",
     map: map,
     center: [3, 48], // longitude, latitude
     zoom: 3,
     highlightOptions: {
-      color: "orange"
+      color: "orange" //set highlight colour for hover.
     },
 
-    //currently a zoom constraint set - maybe change.
+    //Restrict minimum map scale.
     constraints: {
       snapToZoom: false,
-      minScale: 100000000
+      minScale: 1000000000
     },
     resizeAlign: "top-left"
   });
 
-  var legend = new Legend({
+  // Create new Legend
+  let legend = new Legend({
     view: view,
     layerInfos: [
       {
@@ -126,21 +70,31 @@ require([
     ]
   });
 
+  // Initiate Tooltip for hovering.
+  let tooltip = createTooltip();
+
   //--------------------------------------------------------------------------
   //
   //  Setup UI on application startup.
   //
   //--------------------------------------------------------------------------
-  let tooltip = createTooltip();
-  //when view has loaded then create the renderer for the layer.
-  //add newly rendered layer to the map
-  //then when layer is added check that layer view is loaded.
-  //set the layer view as a stored variable to be used in setupActions.
+
+  //when view has loaded - add in layer and UI in the correct sequence.
+
+  // **** Promise chain ****
+  //Load mapView
+  //Create Renderer for Layer start up.
+  //then add Info window, legend and layer to map.
+  //then let layer graphics load.
+  //then filter layerview to specific type of voting and set an intially selected country
+  //then initiate UI interaction/
 
   view.when().then(function() {
-    currentSelectedCountry = "United_Kingdom";
+    currentSelectedCountry = "United_Kingdom"; //start up selected country
 
-    Promise.all([createRenderer("United_Kingdom", 20, currentFilter)])
+    Promise.all([
+      createRenderer(currentSelectedCountry, maxVoteRange, currentFilter)
+    ])
       .then(function() {
         view.ui.add("info", "manual");
         view.ui.add(legend, "bottom-right");
@@ -160,6 +114,7 @@ require([
         startUpQuery.where = "NAME_ENGL = '" + currentSelectedCountry + "'";
         startUpQuery.outFields = ["NAME_ENGL"];
 
+        // Ensure that the the query has completed before adding startup selection graphic
         if (countryLayerView.updating) {
           var handle = countryLayerView.watch("updating", function(isUpdating) {
             if (!isUpdating) {
@@ -184,18 +139,41 @@ require([
       .then(setupActions);
   });
 
-  //Define event listeners on UI
-
   //--------------------------------------------------------------------------
   //
   //  Setup Methods
   //
   //--------------------------------------------------------------------------
 
+  function setupActions() {
+    view.on("pointer-down", clickHandler); // listen for pointer down event on view
+    view.on("click", clickHandler); // listen for click event on view
+    view.on("pointer-move", hoverHandler); // listen for pointer movement on view
+
+    //Add event listeners to the Radio buttons - listen for click.
+    for (var i = 0; i < allButtons.length; i++) {
+      allButtons[i].addEventListener("click", function(event) {
+        filterByVoting(this);
+      });
+    }
+
+    //Listen for the mouse entering and leaving the viewDiv element - this allows
+    //the tooltip to be hidden when the mouse leaves the map.
+    viewDivElement.addEventListener("mouseout", function(event) {
+      window = false;
+    });
+
+    viewDivElement.addEventListener("mouseover", function(event) {
+      window = true;
+    });
+  }
+
+  // String formatter text removes underscore from name strings (e.g. United_Kingdom)
   function StringFormatter(string) {
     return string.replace(/_/g, " ");
   }
 
+  // Add a startup selection to the map.
   function addStartUpGraphic(result) {
     feature = result.features[0];
 
@@ -210,61 +188,38 @@ require([
     view.graphics.add(graphic);
   }
 
-  function setupActions() {
-    view.on("pointer-down", clickHandler);
-    view.on("click", clickHandler);
-    view.on("pointer-move", hoverHandler);
-
-    for (var i = 0; i < allButtons.length; i++) {
-      allButtons[i].addEventListener("click", function(event) {
-        filterByVoting(this);
-      });
-    }
-
-    viewDivElement.addEventListener("mouseout", function(event) {
-      window = false;
-    });
-
-    viewDivElement.addEventListener("mouseover", function(event) {
-      window = true;
-    });
-  }
-
   //store the current target of the click event.
   let currentTarget;
 
   function clickHandler(event) {
-    console.log(event);
     // the hitTest() checks to see if any graphics in the view
-    // intersect the x, y coordinates of the pointer
+    // intersect the x, y coordinates of the clicked point
     view.hitTest(event).then(function targetFeature(response) {
+      //Vector basemaps return in the hitTest results layer - a country polygon is
+      //intersected by clicks only when 2 results are returned.
       if (response.results.length > 1) {
-        // >1 as vector basemap counts as a result unlike raster!
-        //if there is any results i.e. the results object returns non-zero.
-        //if so then select the graphics from the layer.
+        //select the graphics from the results layer.
         const graphic = response.results.filter(function(result) {
           return result.graphic.layer === layer;
         })[0].graphic;
 
-        //get attributes of the country selected by a click
-        let attributes = graphic.attributes;
-        let countryValue = "$feature." + attributes.NAME_ENGL;
-        currentSelectedCountry = attributes.NAME_ENGL;
-        dom.byId("info").style.visibility = "visible";
-        dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL);
-        dom.byId("total-votes").innerHTML = attributes.TotalVotes + " Votes";
-        dom.byId("position").innerHTML = attributes.rank;
+        let attributes = graphic.attributes; //get attributes of the country selected by a click
+        currentSelectedCountry = attributes.NAME_ENGL; // set the selected country by the click
+        dom.byId("info").style.visibility = "visible"; //display the info window
+        dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL); // Add the country name to info window
+        dom.byId("total-votes").innerHTML = attributes.TotalVotes + " Votes"; // Add the total votes to the info window
+        dom.byId("position").innerHTML = attributes.rank; // add the position in the competetion to the info window
 
         //update the selected country only if a new country has been selected.
-        if (currentTarget !== countryValue) {
-          currentTarget = countryValue;
+        if (currentTarget !== currentSelectedCountry) {
+          currentTarget = currentSelectedCountry;
           watchUtils.whenFalseOnce(
             view,
             "updating",
 
             createRenderer(currentSelectedCountry, maxVoteRange, currentFilter)
           );
-          // remove the current secltion graphic from the map.
+          // remove the current selection graphic from the map.
           view.graphics.removeAll();
 
           //**** this could be change to improve the selection appearance.
@@ -278,6 +233,8 @@ require([
           view.graphics.add(graphic);
           tooltip.hide();
         }
+
+        //current country selection unchanged so return
         return;
       }
     });
@@ -288,46 +245,40 @@ require([
     // the hitTest() checks to see if any graphics in the view
     // intersect the x, y coordinates of the pointer
     view.hitTest(event).then(function getGraphics(response) {
-      /* 
-        This is the getGraphics function which is called using the promise above. Note that when the
-        function is called the input is the response which comes from the view.hitTest!!!
-  
-        When resolved, returns an object containing the graphics (if present) that intersect the given screen coordinates.
-        */
-
       if (response.results.length > 1) {
-        //if there is any results i.e. the results object returns non-zero.
-        //if so then select the graphics from the layer.
+        //Vector basemaps return in the hitTest results layer (raster basemaps use >0)
+        // - a country polygon is intersected by hover only when 2 results are returned.
+
         const graphic = response.results.filter(function(result) {
           return result.graphic.layer === layer;
         })[0].graphic;
 
         //Select some attributes from the graphics layer to work with.
-        viewDivElement.style.cursor = "pointer";
+        viewDivElement.style.cursor = "pointer"; // change to pointer when on countries that can be clicked.
 
-        let attributes = graphic.attributes;
-        let id = attributes.OBJECTID_1;
-        let screenPoint = response.screenPoint;
-        let hoverSelection = graphic.getAttribute("NAME_ENGL");
-        let voteForSelection = graphic.getAttribute(currentSelectedCountry);
+        let attributes = graphic.attributes; //get attributes of country hovered over.
+        let id = attributes.OBJECTID_1; //get object ID (used to track hover)
+        let screenPoint = response.screenPoint; //cursor coordinates for tooltip
+        let hoverSelection = graphic.getAttribute("NAME_ENGL"); //get country name
+        let voteForSelection = graphic.getAttribute(currentSelectedCountry); //get number of votes attribute (for current selected country)
 
+        // on hovering over a country a tooltip is always created.
         if (
           hoverSelection == currentSelectedCountry ||
           voteForSelection === undefined
+          //if the country hovered over is currently selected or has undefined votes then
+          //create a tooltip which contains only the country name
         ) {
           tooltip.show(screenPoint, StringFormatter(hoverSelection));
         } else {
+          //Otherwise show votes in the tooltip
           tooltip.show(
             screenPoint,
             voteForSelection + " Votes from " + hoverSelection
           );
         }
 
-        // dom.byId("category").innerHTML = "Category ";
-        // dom.byId("wind").innerHTML = " kts";
-
         //If Id which is returned is not already selected then remove current highlight
-
         if (highlightSelect && currentid !== id) {
           highlightSelect.remove();
           highlightSelect = null;
@@ -335,31 +286,25 @@ require([
 
         //If the selection makes it through the above check and is still highlighted then
         //return as the item is unchanged!
-
         if (highlightSelect) {
           return;
         }
 
         /* If the through to here then this is a new feature which needs to be highlighted! so do so.
          */
-
         highlightSelect = countryLayerView.highlight(id);
         currentid = id;
       } else {
+        //if no countries hovered over then remove existing highlight
         currentid = null;
-        highlightSelect.remove();
-        tooltip.hide();
-        viewDivElement.style.cursor = "default";
+        highlightSelect.remove(); //remove highlight
+        tooltip.hide(); // hide tooltip
+        viewDivElement.style.cursor = "default"; //set cursor to default
       }
-
-      // highlight all features belonging to the same hurricane as the feature
-      // returned from the hitTest
     });
   }
 
-  /**
-   * Handles the filtering
-   */
+  // This function handles filtering of dataset.
   function filterByVoting(eventTarget) {
     const selectedVoteType = eventTarget.getAttribute("voteType");
     countryLayerView.filter = {
@@ -382,13 +327,11 @@ require([
         currentFilter = "Televotes";
         break;
     }
-    createRenderer(currentSelectedCountry, maxVoteRange, currentFilter);
+    createRenderer(currentSelectedCountry, maxVoteRange, currentFilter); //update the rendering scales on change of filter.
   }
 
-  /**
-   * Changes the colour renderer based upon the selected country
-   */
-
+  // Function creates a new continuous renderer.
+  // Red to Green (min to max votesS)
   function createRenderer(countrySelected, maxColorRange, legendTitle) {
     layer.renderer = {
       type: "simple",
