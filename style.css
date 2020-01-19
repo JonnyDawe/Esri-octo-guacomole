@@ -102,18 +102,47 @@ body {
   transform: translate3d(-50%, -125%, 0);
 }
 
+.country-title {
+  font-size: 6vh;
+  padding-bottom: 5px;
+  border-bottom: 2px solid white;
+}
+
+.chartjs-gauge {
+  width: 100%;
+  /* height: 100%; */
+  /*   background-color:blue; */
+  padding: 0;
+  margin: 0;
+}
+
+.chart-container {
+  /*   background-color:red; */
+  margin: auto;
+  width: 100%;
+  height: 50%;
+  padding: 5px 0px 5px;
+  margin: 0;
+}
+
+.position {
+  padding-top: 3px;
+}
+
 #info {
-  padding: 12px;
-  background-color: black;
-  opacity: 0.75;
+  display: flex;
+  flex-direction: column;
+  width: 29vw;
+  height: 40vh;
+  /*   padding: 12px; */
+  background-color: #252525;
+  opacity: 1;
   color: white;
   text-align: center;
-  width: 20%;
-  height: 30%;
-  visibility: hidden;
   top: 15px;
   right: 15px;
-  font-size: 2vw;
+  font-size: 4vh;
+  visibility: hidden;
 }
 
 .Title {

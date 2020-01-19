@@ -9,6 +9,8 @@
       rel="stylesheet"
       href="https://js.arcgis.com/4.13/esri/themes/dark-blue/main.css"
     />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
     <script src="https://js.arcgis.com/4.13/"></script>
     <link href="./style.css" rel="stylesheet" type="text/css" />
   </head>
@@ -36,10 +38,13 @@
       </label>
     </div>
     <div id="viewDiv"></div>
-    <div id="info" class="esri-widget">
-      <span id="name"></span> <br />
-      <span id="total-votes"></span> <br />
-      <span id="position"></span>
+    <div id="info">
+      <div id="name" class="country-title"></div>
+      <div id="position" class="position"></div>
+      <div class="chart-container">
+        <canvas class="chartjs-gauge"></canvas>
+      </div>
+      <div id="total-votes" class="vote-count"></div>
     </div>
   </body>
   <script src="./mapLogic.js"></script>

@@ -27,6 +27,15 @@ require([
   let countryLayerView; // stores the layer view which is created.
   let maxVoteRange = 20; // stores the current upper limit for the continuous colour renderer
   let currentFilter = "Total Votes"; // record the currently selected filter
+  let chart = [];
+  let teleVotingChartElement = [];
+  let juryVotingChartElement = [];
+  let gaugeColours = {
+    red: "rgb(255, 99, 132)",
+    blue: "rgb(54, 162, 235)",
+    grey: "rgb(128,128,128)"
+  };
+  let selectedCountryAttributes = [];
 
   // Load FeatureLayer containing country data
   const layer = new FeatureLayer({
@@ -112,7 +121,13 @@ require([
 
         var startUpQuery = layer.createQuery();
         startUpQuery.where = "NAME_ENGL = '" + currentSelectedCountry + "'";
-        startUpQuery.outFields = ["NAME_ENGL"];
+        startUpQuery.outFields = [
+          "NAME_ENGL",
+          "TotalVotes",
+          "rank",
+          "TeleVotes",
+          "JuryVotes"
+        ];
 
         // Ensure that the the query has completed before adding startup selection graphic
         if (countryLayerView.updating) {
@@ -161,6 +176,7 @@ require([
     //the tooltip to be hidden when the mouse leaves the map.
     viewDivElement.addEventListener("mouseout", function(event) {
       window = false;
+      tooltip.hide();
     });
 
     viewDivElement.addEventListener("mouseover", function(event) {
@@ -176,6 +192,9 @@ require([
   // Add a startup selection to the map.
   function addStartUpGraphic(result) {
     feature = result.features[0];
+    console.log(feature);
+    let attributes = feature.attributes;
+    selectedCountryAttributes = feature.attributes;
 
     let graphic = new Graphic({
       geometry: feature.geometry,
@@ -186,6 +205,41 @@ require([
     });
 
     view.graphics.add(graphic);
+    dom.byId("info").style.visibility = "visible"; //display the info window
+    dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL); // Add the country name to info window
+    dom.byId("total-votes").innerHTML = attributes.TotalVotes + " Votes"; // Add the total votes to the info window
+    dom.byId("position").innerHTML = attributes.rank; // add the position in the competetion to the info window
+
+    var ctx = document.getElementsByClassName("chartjs-gauge");
+    chart = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: ["TeleVotes", "JuryVotes"],
+        datasets: [
+          {
+            label: "Gauge",
+            data: [attributes.TeleVotes, attributes.JuryVotes],
+            backgroundColor: [
+              "rgb(255, 99, 132)",
+              "rgb(54, 162, 235)",
+              "rgb(255, 205, 86)"
+            ]
+          }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        circumference: Math.PI,
+        rotation: Math.PI,
+        cutoutPercentage: 50,
+        legend: {
+          display: false
+        },
+        tooltips: {
+          enabled: true
+        }
+      }
+    });
   }
 
   //store the current target of the click event.
@@ -204,13 +258,30 @@ require([
         })[0].graphic;
 
         let attributes = graphic.attributes; //get attributes of the country selected by a click
+        selectedCountryAttributes = graphic.attributes;
         currentSelectedCountry = attributes.NAME_ENGL; // set the selected country by the click
-        dom.byId("info").style.visibility = "visible"; //display the info window
-        dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL); // Add the country name to info window
-        dom.byId("total-votes").innerHTML = attributes.TotalVotes + " Votes"; // Add the total votes to the info window
-        dom.byId("position").innerHTML = attributes.rank; // add the position in the competetion to the info window
+
+        if (typeof attributes.rank === "string") {
+          dom.byId("info").style.visibility = "visible"; //display the info window
+          dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL); // Add the country name to info window
+          dom.byId("total-votes").innerHTML = attributes.TotalVotes + " Votes"; // Add the total votes to the info window
+          dom.byId("position").innerHTML = attributes.rank; // add the position in the competetion to the info window
+
+          console.log([attributes.TeleVotes, attributes.JuryVotes]);
+          change_gauge(chart, "Gauge", [
+            attributes.TeleVotes,
+            attributes.JuryVotes
+          ]);
+        } else {
+          dom.byId("info").style.visibility = "visible";
+          dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL);
+          dom.byId("position").innerHTML = "Did not make the Final";
+          dom.byId("total-votes").innerHTML = "";
+          change_gauge(chart, "Gauge", [0, 0]);
+        }
 
         //update the selected country only if a new country has been selected.
+
         if (currentTarget !== currentSelectedCountry) {
           currentTarget = currentSelectedCountry;
           watchUtils.whenFalseOnce(
@@ -306,25 +377,35 @@ require([
 
   // This function handles filtering of dataset.
   function filterByVoting(eventTarget) {
+    teleVotingChartElement = chart.getDatasetMeta(0).data[0];
+    juryVotingChartElement = chart.getDatasetMeta(0).data[1];
     const selectedVoteType = eventTarget.getAttribute("voteType");
     countryLayerView.filter = {
       where: "Jury_and_Televoting  = '" + selectedVoteType + "'"
     };
 
+    let data = [
+      selectedCountryAttributes.TeleVotes,
+      selectedCountryAttributes.JuryVotes
+    ];
+
     switch (selectedVoteType) {
       case "TJ":
         maxVoteRange = 20;
         currentFilter = "Total Votes";
+        change_gauge(chart, "Gauge", data);
         break;
 
       case "J":
         maxVoteRange = 12;
         currentFilter = "Jury Votes";
+        change_gauge(chart, "Gauge", data);
         break;
 
       case "T":
         maxVoteRange = 12;
         currentFilter = "Televotes";
+        change_gauge(chart, "Gauge", data);
         break;
     }
     createRenderer(currentSelectedCountry, maxVoteRange, currentFilter); //update the rendering scales on change of filter.
@@ -374,6 +455,59 @@ require([
     };
   }
 
+  /**
+   * updates the chart
+   */
+  function change_gauge(chart, label, data) {
+    chart.data.datasets.forEach(dataset => {
+      if (dataset.label == label) {
+        dataset.data = data;
+
+        switch (currentFilter) {
+          case "Total Votes":
+            dataset.backgroundColor[0] = gaugeColours.red;
+            dataset.backgroundColor[1] = gaugeColours.blue;
+            break;
+
+          case "Jury Votes":
+            dataset.backgroundColor[0] = gaugeColours.grey;
+            dataset.backgroundColor[1] = gaugeColours.blue;
+            break;
+
+          case "Televotes":
+            dataset.backgroundColor[0] = gaugeColours.red;
+            dataset.backgroundColor[1] = gaugeColours.grey;
+            break;
+        }
+      }
+    });
+    chart.update();
+  }
+  function change_gauge(chart, label, data) {
+    chart.data.datasets.forEach(dataset => {
+      if (dataset.label == label) {
+        dataset.data = data;
+
+        switch (currentFilter) {
+          case "Total Votes":
+            dataset.backgroundColor[0] = gaugeColours.red;
+            dataset.backgroundColor[1] = gaugeColours.blue;
+            break;
+
+          case "Jury Votes":
+            dataset.backgroundColor[0] = gaugeColours.grey;
+            dataset.backgroundColor[1] = gaugeColours.blue;
+            break;
+
+          case "Televotes":
+            dataset.backgroundColor[0] = gaugeColours.red;
+            dataset.backgroundColor[1] = gaugeColours.grey;
+            break;
+        }
+      }
+    });
+    chart.update();
+  }
   /**
    * Creates a tooltip to display the votes for a country
    */
