@@ -9,6 +9,18 @@ body {
   font-family: Cabin, serif;
 }
 
+#viewDiv
+  > div.esri-view-root
+  > div.esri-ui
+  > div.esri-ui-inner-container.esri-ui-corner-container
+  > div.esri-ui-bottom-right.esri-ui-corner
+  > div
+  > div
+  > div
+  > div:nth-child(1) {
+  display: none;
+}
+
 .FilterBar {
   background-color: rgb(36, 36, 36);
   font-size: 1.4vw;
@@ -103,9 +115,10 @@ body {
 }
 
 .country-title {
-  font-size: 6vh;
+  font-size: 150%;
   padding-bottom: 5px;
   border-bottom: 2px solid white;
+  white-space: nowrap;
 }
 
 .chartjs-gauge {
@@ -149,4 +162,13 @@ body {
   flex-grow: 1;
   font-size: 3vw;
   padding: 10px;
+}
+
+.noselect {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }

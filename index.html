@@ -22,19 +22,19 @@
         <input
           type="radio"
           value="TJ"
-          name="quality"
+          name="filter"
           id="TJ"
           checked="checked"
         />
         <span>Total</span>
       </label>
       <label class="item" voteType="T" value="T">
-        <input type="radio" value="T" name="quality" id="T" />
+        <input type="radio" value="T" name="filter" id="T" />
         <span>Televoting</span>
       </label>
 
       <label class="item" voteType="J" value="J">
-        <input type="radio" value="J" name="quality" id="T" /> <span>Jury</span>
+        <input type="radio" value="J" name="filter" id="T" /> <span>Jury</span>
       </label>
     </div>
     <div id="viewDiv"></div>
@@ -44,7 +44,7 @@
       <div class="chart-container">
         <canvas class="chartjs-gauge"></canvas>
       </div>
-      <div id="total-votes" class="vote-count"></div>
+      <div id="total-votes" class="vote-count noselect"></div>
     </div>
   </body>
   <script src="./mapLogic.js"></script>

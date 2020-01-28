@@ -1,3 +1,10 @@
+//Enable focus on selection style of click event
+//change the hover colour to red or something for countries which did not make the final.
+
+//To do: Create better variables to track
+//implement proper design patterns to follow
+//use scc
+
 require([
   //Import Esri Mapping modules
   "esri/Map",
@@ -27,9 +34,8 @@ require([
   let countryLayerView; // stores the layer view which is created.
   let maxVoteRange = 20; // stores the current upper limit for the continuous colour renderer
   let currentFilter = "Total Votes"; // record the currently selected filter
+  let currentcodeFilter = "TJ";
   let chart = [];
-  let teleVotingChartElement = [];
-  let juryVotingChartElement = [];
   let gaugeColours = {
     red: "rgb(255, 99, 132)",
     blue: "rgb(54, 162, 235)",
@@ -54,7 +60,7 @@ require([
   const view = new MapView({
     container: "viewDiv",
     map: map,
-    center: [3, 48], // longitude, latitude
+    center: [15, 48], // longitude, latitude
     zoom: 3,
     highlightOptions: {
       color: "orange" //set highlight colour for hover.
@@ -168,7 +174,7 @@ require([
     //Add event listeners to the Radio buttons - listen for click.
     for (var i = 0; i < allButtons.length; i++) {
       allButtons[i].addEventListener("click", function(event) {
-        filterByVoting(this);
+        filterByVoting(this.getAttribute("voteType"));
       });
     }
 
@@ -217,7 +223,7 @@ require([
         labels: ["TeleVotes", "JuryVotes"],
         datasets: [
           {
-            label: "Gauge",
+            label: ["T", "J"],
             data: [attributes.TeleVotes, attributes.JuryVotes],
             backgroundColor: [
               "rgb(255, 99, 132)",
@@ -239,6 +245,22 @@ require([
           enabled: true
         }
       }
+    });
+    ctx[0].addEventListener("click", function(event) {
+      //Aiming for functionality where you can click on the chart to apply the filter and then click again on the same point to turn it off.
+      var activePoints = chart.getElementAtEvent(event);
+      let clickedFilter = activePoints[0]._model.label;
+      if (currentcodeFilter == clickedFilter) {
+        clickedFilter = "TJ";
+        filterByVoting("TJ");
+      } else {
+        filterByVoting(clickedFilter);
+      }
+      allButtons.forEach(x => {
+        if (x.control.value == clickedFilter) {
+          x.control.checked = true;
+        }
+      });
     });
   }
 
@@ -376,10 +398,9 @@ require([
   }
 
   // This function handles filtering of dataset.
-  function filterByVoting(eventTarget) {
-    teleVotingChartElement = chart.getDatasetMeta(0).data[0];
-    juryVotingChartElement = chart.getDatasetMeta(0).data[1];
-    const selectedVoteType = eventTarget.getAttribute("voteType");
+  // never have a function working with the response from a promise - always have values being input!
+
+  function filterByVoting(selectedVoteType) {
     countryLayerView.filter = {
       where: "Jury_and_Televoting  = '" + selectedVoteType + "'"
     };
@@ -393,18 +414,21 @@ require([
       case "TJ":
         maxVoteRange = 20;
         currentFilter = "Total Votes";
+        currentcodeFilter = "TJ";
         change_gauge(chart, "Gauge", data);
         break;
 
       case "J":
         maxVoteRange = 12;
         currentFilter = "Jury Votes";
+        currentcodeFilter = "J";
         change_gauge(chart, "Gauge", data);
         break;
 
       case "T":
         maxVoteRange = 12;
         currentFilter = "Televotes";
+        currentcodeFilter = "T";
         change_gauge(chart, "Gauge", data);
         break;
     }
@@ -460,50 +484,23 @@ require([
    */
   function change_gauge(chart, label, data) {
     chart.data.datasets.forEach(dataset => {
-      if (dataset.label == label) {
-        dataset.data = data;
+      dataset.data = data;
 
-        switch (currentFilter) {
-          case "Total Votes":
-            dataset.backgroundColor[0] = gaugeColours.red;
-            dataset.backgroundColor[1] = gaugeColours.blue;
-            break;
+      switch (currentFilter) {
+        case "Total Votes":
+          dataset.backgroundColor[0] = gaugeColours.red;
+          dataset.backgroundColor[1] = gaugeColours.blue;
+          break;
 
-          case "Jury Votes":
-            dataset.backgroundColor[0] = gaugeColours.grey;
-            dataset.backgroundColor[1] = gaugeColours.blue;
-            break;
+        case "Jury Votes":
+          dataset.backgroundColor[0] = gaugeColours.grey;
+          dataset.backgroundColor[1] = gaugeColours.blue;
+          break;
 
-          case "Televotes":
-            dataset.backgroundColor[0] = gaugeColours.red;
-            dataset.backgroundColor[1] = gaugeColours.grey;
-            break;
-        }
-      }
-    });
-    chart.update();
-  }
-  function change_gauge(chart, label, data) {
-    chart.data.datasets.forEach(dataset => {
-      if (dataset.label == label) {
-        dataset.data = data;
-
-        switch (currentFilter) {
-          case "Total Votes":
-            dataset.backgroundColor[0] = gaugeColours.red;
-            dataset.backgroundColor[1] = gaugeColours.blue;
-            break;
-
-          case "Jury Votes":
-            dataset.backgroundColor[0] = gaugeColours.grey;
-            dataset.backgroundColor[1] = gaugeColours.blue;
-            break;
-
-          case "Televotes":
-            dataset.backgroundColor[0] = gaugeColours.red;
-            dataset.backgroundColor[1] = gaugeColours.grey;
-            break;
-        }
+        case "Televotes":
+          dataset.backgroundColor[0] = gaugeColours.red;
+          dataset.backgroundColor[1] = gaugeColours.grey;
+          break;
       }
     });
     chart.update();
