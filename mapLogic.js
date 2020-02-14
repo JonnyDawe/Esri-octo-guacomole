@@ -12,9 +12,19 @@ require([
   "esri/layers/FeatureLayer",
   "esri/Graphic",
   "dojo/dom",
+  "dojo/query",
   "esri/widgets/Legend",
   "esri/core/watchUtils"
-], function(Map, MapView, FeatureLayer, Graphic, dom, Legend, watchUtils) {
+], function(
+  Map,
+  MapView,
+  FeatureLayer,
+  Graphic,
+  dom,
+  dojoquery,
+  Legend,
+  watchUtils
+) {
   //--------------------------------------------------------------------------
   //
   //  Setup variables for Maps, Views and Utilities
@@ -24,12 +34,12 @@ require([
   //*** application Variables ***
 
   // UI HTML Elements
-  const viewDivElement = document.getElementById("viewDiv"); //Map element Div
-  const allButtons = document.querySelectorAll(".item"); //Radio buttons array
+  const viewDivElement = dom.byId("viewDiv"); //Map element Div
+  const allButtons = dojoquery(".item"); //Radio buttons array
 
   let window = true; // record whether the mouse currently over the map element Div
 
-  // Application scope
+  // Application scope - initialise starting variables
   let currentSelectedCountry; // record the currently selected country
   let countryLayerView; // stores the layer view which is created.
   let maxVoteRange = 20; // stores the current upper limit for the continuous colour renderer
@@ -48,7 +58,8 @@ require([
     url:
       "https://services1.arcgis.com/iKsbAcqgVYmhKSqt/arcgis/rest/services/Eurovision2019Countries/FeatureServer",
     outFields: ["*"],
-    opacity: 0.7
+    opacity: 0.7,
+    title: "Active Layer"
   });
 
   // Create new Map
@@ -125,7 +136,7 @@ require([
           where: "Jury_and_Televoting  = 'TJ'"
         };
 
-        var startUpQuery = layer.createQuery();
+        let startUpQuery = layer.createQuery();
         startUpQuery.where = "NAME_ENGL = '" + currentSelectedCountry + "'";
         startUpQuery.outFields = [
           "NAME_ENGL",
@@ -137,13 +148,13 @@ require([
 
         // Ensure that the the query has completed before adding startup selection graphic
         if (countryLayerView.updating) {
-          var handle = countryLayerView.watch("updating", function(isUpdating) {
+          let handle = countryLayerView.watch("updating", function(isUpdating) {
             if (!isUpdating) {
               // Execute the query
               countryLayerView
                 .queryFeatures(startUpQuery)
                 .then(function(result) {
-                  addStartUpGraphic(result);
+                  addStartUpGraphic(result.features[0]);
                 });
               handle.remove();
             }
@@ -151,7 +162,7 @@ require([
         } else {
           // Execute the query
           countryLayerView.queryFeatures(startUpQuery).then(function(result) {
-            addStartUpGraphic(result);
+            addStartUpGraphic(result.features[0]);
           });
         }
 
@@ -172,7 +183,7 @@ require([
     view.on("pointer-move", hoverHandler); // listen for pointer movement on view
 
     //Add event listeners to the Radio buttons - listen for click.
-    for (var i = 0; i < allButtons.length; i++) {
+    for (let i = 0; i < allButtons.length; i++) {
       allButtons[i].addEventListener("click", function(event) {
         filterByVoting(this.getAttribute("voteType"));
       });
@@ -196,9 +207,8 @@ require([
   }
 
   // Add a startup selection to the map.
-  function addStartUpGraphic(result) {
-    feature = result.features[0];
-    console.log(feature);
+  function addStartUpGraphic(startUpFeature) {
+    let feature = startUpFeature;
     let attributes = feature.attributes;
     selectedCountryAttributes = feature.attributes;
 
@@ -210,19 +220,22 @@ require([
       }
     });
 
+    //Add start up selected feature graphic to the map
     view.graphics.add(graphic);
     dom.byId("info").style.visibility = "visible"; //display the info window
     dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL); // Add the country name to info window
     dom.byId("total-votes").innerHTML = attributes.TotalVotes + " Votes"; // Add the total votes to the info window
     dom.byId("position").innerHTML = attributes.rank; // add the position in the competetion to the info window
 
-    var ctx = document.getElementsByClassName("chartjs-gauge");
+    //Initiate the Guage Chart (based on altered donut chart here: https://codepen.io/patxipierce/pen/oyeNMj)
+    let ctx = dojoquery(".chartjs-gauge");
     chart = new Chart(ctx, {
       type: "doughnut",
       data: {
         labels: ["TeleVotes", "JuryVotes"],
         datasets: [
           {
+            // labels here are used to control the filter functionality
             label: ["T", "J"],
             data: [attributes.TeleVotes, attributes.JuryVotes],
             backgroundColor: [
@@ -246,16 +259,26 @@ require([
         }
       }
     });
+
+    // Initiate interactions with the graph - change the filter on clicking on a section of the guage.
+    // Event listener set on the element.
     ctx[0].addEventListener("click", function(event) {
-      //Aiming for functionality where you can click on the chart to apply the filter and then click again on the same point to turn it off.
-      var activePoints = chart.getElementAtEvent(event);
+      //get the elements where the user clicks.
+      let activePoints = chart.getElementAtEvent(event);
+
+      //get the labels which is used to filter vote types for datasets.
       let clickedFilter = activePoints[0]._model.label;
+
+      // if the clicked on segment is already set as the filter return to total votes filter.
       if (currentcodeFilter == clickedFilter) {
         clickedFilter = "TJ";
         filterByVoting("TJ");
       } else {
+        //otherwise select the new vote type to filter the data by.
         filterByVoting(clickedFilter);
       }
+
+      // change the radio buttons to reflect the changes to the filtering.
       allButtons.forEach(x => {
         if (x.control.value == clickedFilter) {
           x.control.checked = true;
@@ -273,67 +296,78 @@ require([
     view.hitTest(event).then(function targetFeature(response) {
       //Vector basemaps return in the hitTest results layer - a country polygon is
       //intersected by clicks only when 2 results are returned.
-      if (response.results.length > 1) {
-        //select the graphics from the results layer.
-        const graphic = response.results.filter(function(result) {
-          return result.graphic.layer === layer;
-        })[0].graphic;
+      response.results.forEach(element => {
+        if (element.graphic.layer.title == "Active Layer") {
+          //select the graphics from the results layer.
+          const graphic = response.results.filter(function(result) {
+            return result.graphic.layer === layer;
+          })[0].graphic;
 
-        let attributes = graphic.attributes; //get attributes of the country selected by a click
-        selectedCountryAttributes = graphic.attributes;
-        currentSelectedCountry = attributes.NAME_ENGL; // set the selected country by the click
+          let attributes = graphic.attributes; //get attributes of the country selected by a click
+          selectedCountryAttributes = graphic.attributes;
+          currentSelectedCountry = attributes.NAME_ENGL; // set the selected country by the click
 
-        if (typeof attributes.rank === "string") {
-          dom.byId("info").style.visibility = "visible"; //display the info window
-          dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL); // Add the country name to info window
-          dom.byId("total-votes").innerHTML = attributes.TotalVotes + " Votes"; // Add the total votes to the info window
-          dom.byId("position").innerHTML = attributes.rank; // add the position in the competetion to the info window
+          if (typeof attributes.rank === "string") {
+            dom.byId("info").style.visibility = "visible"; //display the info window
+            dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL); // Add the country name to info window
+            dom.byId("total-votes").innerHTML =
+              attributes.TotalVotes + " Votes"; // Add the total votes to the info window
+            dom.byId("position").innerHTML = attributes.rank; // add the position in the competetion to the info window
+            let ctx = dojoquery(".chartjs-gauge");
+            ctx[0].style.visibility = "visible";
 
-          console.log([attributes.TeleVotes, attributes.JuryVotes]);
-          change_gauge(chart, "Gauge", [
-            attributes.TeleVotes,
-            attributes.JuryVotes
-          ]);
-        } else {
-          dom.byId("info").style.visibility = "visible";
-          dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL);
-          dom.byId("position").innerHTML = "Did not make the Final";
-          dom.byId("total-votes").innerHTML = "";
-          change_gauge(chart, "Gauge", [0, 0]);
+            console.log([attributes.TeleVotes, attributes.JuryVotes]);
+            change_gauge(chart, "Gauge", [
+              attributes.TeleVotes,
+              attributes.JuryVotes
+            ]);
+          } else {
+            dom.byId("info").style.visibility = "visible";
+            dom.byId("name").innerHTML = StringFormatter(attributes.NAME_ENGL);
+            dom.byId("position").innerHTML = "Did not make the Final";
+            dom.byId("total-votes").innerHTML = "";
+            let ctx = dojoquery(".chartjs-gauge");
+            ctx[0].style.visibility = "hidden";
+            change_gauge(chart, "Gauge", [0, 0]);
+          }
+
+          //update the selected country only if a new country has been selected.
+
+          if (currentTarget !== currentSelectedCountry) {
+            currentTarget = currentSelectedCountry;
+            watchUtils.whenFalseOnce(
+              view,
+              "updating",
+
+              createRenderer(
+                currentSelectedCountry,
+                maxVoteRange,
+                currentFilter
+              )
+            );
+            // remove the current selection graphic from the map.
+            view.graphics.removeAll();
+
+            //**** this could be change to improve the selection appearance.
+            // Also do I want to consider what happens if a country did not compete....
+            graphic.symbol = {
+              type: "simple-fill", // autocasts as new SimpleMarkerSymbol()
+              color: "blue"
+            };
+
+            // add the new graphic as a simple fill.
+            view.graphics.add(graphic);
+            tooltip.hide();
+          }
+
+          //current country selection unchanged so return
+          return;
         }
-
-        //update the selected country only if a new country has been selected.
-
-        if (currentTarget !== currentSelectedCountry) {
-          currentTarget = currentSelectedCountry;
-          watchUtils.whenFalseOnce(
-            view,
-            "updating",
-
-            createRenderer(currentSelectedCountry, maxVoteRange, currentFilter)
-          );
-          // remove the current selection graphic from the map.
-          view.graphics.removeAll();
-
-          //**** this could be change to improve the selection appearance.
-          // Also do I want to consider what happens if a country did not compete....
-          graphic.symbol = {
-            type: "simple-fill", // autocasts as new SimpleMarkerSymbol()
-            color: "blue"
-          };
-
-          // add the new graphic as a simple fill.
-          view.graphics.add(graphic);
-          tooltip.hide();
-        }
-
-        //current country selection unchanged so return
-        return;
-      }
+      });
     });
   }
 
-  let highlightSelect, currentid;
+  let highlightSelect, currentid, finalistCheck;
   function hoverHandler(event) {
     // the hitTest() checks to see if any graphics in the view
     // intersect the x, y coordinates of the pointer
@@ -341,7 +375,6 @@ require([
       if (response.results.length > 1) {
         //Vector basemaps return in the hitTest results layer (raster basemaps use >0)
         // - a country polygon is intersected by hover only when 2 results are returned.
-
         const graphic = response.results.filter(function(result) {
           return result.graphic.layer === layer;
         })[0].graphic;
@@ -355,6 +388,23 @@ require([
         let hoverSelection = graphic.getAttribute("NAME_ENGL"); //get country name
         let voteForSelection = graphic.getAttribute(currentSelectedCountry); //get number of votes attribute (for current selected country)
 
+        // Highlight finalist countries in green and non-finalists in red.
+        if (
+          (typeof attributes.rank === "string") &
+          (finalistCheck != "Finalist")
+        ) {
+          view.highlightOptions.color = "green";
+          view.highlightOptions.fillOpacity = 0.3;
+          finalistCheck = "Finalist";
+        } else if (
+          (typeof attributes.rank != "string") &
+          (finalistCheck != "notFinalist")
+        ) {
+          view.highlightOptions.color = "red";
+          view.highlightOptions.fillOpacity = 0.5;
+          finalistCheck = "notFinalist";
+        }
+
         // on hovering over a country a tooltip is always created.
         if (
           hoverSelection == currentSelectedCountry ||
@@ -367,7 +417,7 @@ require([
           //Otherwise show votes in the tooltip
           tooltip.show(
             screenPoint,
-            voteForSelection + " Votes from " + hoverSelection
+            StringFormatter(voteForSelection + " Votes from " + hoverSelection)
           );
         }
 
@@ -509,24 +559,24 @@ require([
    * Creates a tooltip to display the votes for a country
    */
   function createTooltip() {
-    var tooltip = document.createElement("div");
-    var style = tooltip.style;
+    let tooltip = document.createElement("div");
+    let style = tooltip.style;
 
     tooltip.setAttribute("role", "tooltip");
     tooltip.setAttribute("id", "tTip");
     tooltip.classList.add("tooltip");
 
-    var textElement = document.createElement("div");
+    let textElement = document.createElement("div");
     textElement.classList.add("esri-widget");
     tooltip.appendChild(textElement);
 
     view.container.appendChild(tooltip);
 
-    var x = 0;
-    var y = 0;
-    var targetX = 0;
-    var targetY = 0;
-    var visible = false;
+    let x = 0;
+    let y = 0;
+    let targetX = 0;
+    let targetY = 0;
+    let visible = false;
 
     // move the tooltip progressively
     function move() {
