@@ -1,6 +1,6 @@
 # Eurovision Geographical Voting Application
 
-<img src="/W6H3IpFkLh.gif?raw=true" width="800px">
+![ExampleGIF](http://g.recordit.co/i3TVSYEldA.gif)
 
 A web application designed to visualise the geographic voting patterns in the Eurovision Song contest using the ArcGIS API for JavaScript and Chart JS graphing library. A script was written in R to preprocess data which was then published as a hosted service.
 
