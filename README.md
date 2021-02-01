@@ -7,7 +7,7 @@ A web application designed to visualise the geographic voting patterns in the Eu
 The application includes hover and tooltip capabilities, as well changing of renderer on click.
 
 Example application:
-https://codepen.io/JDawe/full/bGNPjpM
+https://jonnydawe.github.io/2019-Eurovision-GeoVoting/
 
 ```
 arcgis-js-api/4.13
