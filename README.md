@@ -74,6 +74,6 @@ ChartJS Donut chart Adapted from https://codepen.io/nolang/pen/GRJKOmN
 
 ## Authors
 
-- **Jonathan Dawe** - JDawe@esriuk.com
+- **Jonathan Dawe**
 
 Feel free to suggest improvements/change requests.
